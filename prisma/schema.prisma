@@ -25,3 +25,14 @@ model Contact {
   message   String
   createdAt DateTime @default(now())
 }
+
+model Booking {
+  id          String   @id @default(cuid())
+  serviceId   String
+  name        String
+  email       String
+  date        String
+  time        String
+  status      String   @default("pending")
+  createdAt   DateTime @default(now())
+}
