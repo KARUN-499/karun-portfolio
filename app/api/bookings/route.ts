@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 // In-memory store for bookings (persists during server session)
 // For production, connect to a real database like Supabase or MongoDB
-const bookings: Record<string, unknown>[] = []
+const bookings: any[] = []
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,7 +14,6 @@ export async function POST(req: NextRequest) {
       createdAt: new Date().toISOString(),
     }
     bookings.push(booking)
-    console.log('New booking:', booking)
     return NextResponse.json({ success: true, id: booking.id }, { status: 201 })
   } catch {
     return NextResponse.json({ error: 'Failed to save booking' }, { status: 500 })
@@ -22,7 +21,6 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-  // Simple admin key protection
   const adminKey = req.headers.get('x-admin-key')
   if (adminKey !== (process.env.ADMIN_KEY || 'karun2024admin')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -35,8 +33,34 @@ export async function PATCH(req: NextRequest) {
   if (adminKey !== (process.env.ADMIN_KEY || 'karun2024admin')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
-  const { id, status } = await req.json()
-  const booking = bookings.find(b => b.id === id)
-  if (booking) booking.status = status
-  return NextResponse.json({ success: true })
+  try {
+    const { id, status } = await req.json()
+    const index = bookings.findIndex(b => b.id === id)
+    if (index !== -1) {
+      bookings[index].status = status
+      return NextResponse.json({ success: true, booking: bookings[index] })
+    }
+    return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
+  } catch {
+    return NextResponse.json({ error: 'Update failed' }, { status: 500 })
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  const adminKey = req.headers.get('x-admin-key')
+  if (adminKey !== (process.env.ADMIN_KEY || 'karun2024admin')) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  try {
+    const { searchParams } = new URL(req.url)
+    const id = searchParams.get('id')
+    const index = bookings.findIndex(b => b.id === id)
+    if (index !== -1) {
+      bookings.splice(index, 1)
+      return NextResponse.json({ success: true })
+    }
+    return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
+  } catch {
+    return NextResponse.json({ error: 'Delete failed' }, { status: 500 })
+  }
 }
