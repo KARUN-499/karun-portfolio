@@ -1,77 +1,43 @@
 name: Fix Long Filenames
-
 on:
   workflow_dispatch:
-
 jobs:
   cleanup:
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - name: Delete problematic files via API
+      - name: Delete files with long names via GitHub API
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: KARUN-499/karun-portfolio
         run: |
-          # Get the current tree SHA for main branch
-          BRANCH_SHA=$(curl -s -H "Authorization: token $GH_TOKEN" \
-            "https://api.github.com/repos/KARUN-499/karun-portfolio/git/refs/heads/main" \
-            | python3 -c "import sys,json; print(json.load(sys.stdin)['object']['sha'])")
-          
-          echo "Branch SHA: $BRANCH_SHA"
-          
-          # Get the tree SHA from the commit
-          TREE_SHA=$(curl -s -H "Authorization: token $GH_TOKEN" \
-            "https://api.github.com/repos/KARUN-499/karun-portfolio/git/commits/$BRANCH_SHA" \
-            | python3 -c "import sys,json; print(json.load(sys.stdin)['tree']['sha'])")
-          
-          echo "Tree SHA: $TREE_SHA"
-          
-          # Get the full tree and find items with long names
-          TREE_DATA=$(curl -s -H "Authorization: token $GH_TOKEN" \
-            "https://api.github.com/repos/KARUN-499/karun-portfolio/git/trees/$TREE_SHA")
-          
-          echo "Tree data:"
-          echo "$TREE_DATA" | python3 -c "import sys,json; [print(i['path'][:100], '|', i['sha']) for i in json.load(sys.stdin)['tree']]"
-          
-          # Build new tree excluding items with names > 100 chars
-          NEW_TREE=$(echo "$TREE_DATA" | python3 -c "
-import sys, json
-data = json.load(sys.stdin)
-items = data['tree']
-keep = []
-for item in items:
-    if len(item['path']) <= 100:
-        keep.append({'path': item['path'], 'mode': item['mode'], 'type': item['type'], 'sha': item['sha']})
-    else:
-        print(f\"REMOVING: {item['path'][:80]}...\", file=sys.stderr)
-print(json.dumps(keep))
-")
-          
-          echo "Creating new tree..."
-          
-          # Create new tree
-          NEW_TREE_SHA=$(curl -s -X POST -H "Authorization: token $GH_TOKEN" \
+          BRANCH_SHA=$(curl -sf -H "Authorization: token $GH_TOKEN" \
+            https://api.github.com/repos/$REPO/git/refs/heads/main \
+            | python3 -c "import sys,json;d=json.load(sys.stdin);print(d['object']['sha'])")
+          echo "Branch: $BRANCH_SHA"
+          TREE_SHA=$(curl -sf -H "Authorization: token $GH_TOKEN" \
+            https://api.github.com/repos/$REPO/git/commits/$BRANCH_SHA \
+            | python3 -c "import sys,json;d=json.load(sys.stdin);print(d['tree']['sha'])")
+          echo "Tree: $TREE_SHA"
+          TREE_JSON=$(curl -sf -H "Authorization: token $GH_TOKEN" \
+            https://api.github.com/repos/$REPO/git/trees/$TREE_SHA)
+          echo "$TREE_JSON" | python3 -c "import sys,json;[print(i['path']) for i in json.load(sys.stdin)['tree'] if len(i['path'])>50]"
+          NEW_TREE=$(echo "$TREE_JSON" | python3 -c "import sys,json;d=json.load(sys.stdin);t=[{'path':i['path'],'mode':i['mode'],'type':i['type'],'sha':i['sha']} for i in d['tree'] if len(i['path'])<=100];print(json.dumps(t))")
+          NEW_TREE_SHA=$(curl -sf -X POST -H "Authorization: token $GH_TOKEN" \
             -H "Content-Type: application/json" \
-            -d "{\"tree\": $NEW_TREE}" \
-            "https://api.github.com/repos/KARUN-499/karun-portfolio/git/trees" \
-            | python3 -c "import sys,json; print(json.load(sys.stdin)['sha'])")
-          
-          echo "New tree SHA: $NEW_TREE_SHA"
-          
-          # Create new commit
-          NEW_COMMIT_SHA=$(curl -s -X POST -H "Authorization: token $GH_TOKEN" \
+            -d "{\"tree\":$NEW_TREE}" \
+            https://api.github.com/repos/$REPO/git/trees \
+            | python3 -c "import sys,json;print(json.load(sys.stdin)['sha'])")
+          echo "New tree: $NEW_TREE_SHA"
+          NEW_COMMIT=$(curl -sf -X POST -H "Authorization: token $GH_TOKEN" \
             -H "Content-Type: application/json" \
-            -d "{\"message\": \"Remove files with long names\", \"tree\": \"$NEW_TREE_SHA\", \"parents\": [\"$BRANCH_SHA\"]}" \
-            "https://api.github.com/repos/KARUN-499/karun-portfolio/git/commits" \
-            | python3 -c "import sys,json; print(json.load(sys.stdin)['sha'])")
-          
-          echo "New commit SHA: $NEW_COMMIT_SHA"
-          
-          # Update branch ref
-          curl -s -X PATCH -H "Authorization: token $GH_TOKEN" \
+            -d "{\"message\":\"Remove files with long names\",\"tree\":\"$NEW_TREE_SHA\",\"parents\":[\"$BRANCH_SHA\"]}" \
+            https://api.github.com/repos/$REPO/git/commits \
+            | python3 -c "import sys,json;print(json.load(sys.stdin)['sha'])")
+          echo "New commit: $NEW_COMMIT"
+          curl -sf -X PATCH -H "Authorization: token $GH_TOKEN" \
             -H "Content-Type: application/json" \
-            -d "{\"sha\": \"$NEW_COMMIT_SHA\"}" \
-            "https://api.github.com/repos/KARUN-499/karun-portfolio/git/refs/heads/main"
-          
-          echo "Done! Branch updated."
+            -d "{\"sha\":\"$NEW_COMMIT\"}" \
+            https://api.github.com/repos/$REPO/git/refs/heads/main
+          echo "Done!"
