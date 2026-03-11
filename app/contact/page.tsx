@@ -33,8 +33,8 @@ export default function Contact() {
               <div className="space-y-5">
                 {[
                   { label: 'Email', value: 'karunsingh5228@gmail.com', icon: '📧' },
-                  { label: 'Location', value: 'Adda Jhungian, Punjab, India', icon: '📍' },
-                  { label: 'Availability', value: 'Mon–Sat, 9AM–7PM IST', icon: '⏰' },
+                  { label: 'Location', value: 'Samalkha, Panipat, HARYANA, India', icon: '📍' },
+                  { label: 'Availability', value: '24/7', icon: '⏰' },
                   { label: 'Response', value: 'Within 24 hours', icon: '⚡' },
                 ].map(item => (
                   <div key={item.label} className="flex items-start gap-4 p-4 rounded-xl" style={{background:'#0d0d0d', border:'1px solid rgba(255,255,255,0.07)'}}>
