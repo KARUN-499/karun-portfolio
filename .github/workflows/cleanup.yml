@@ -9,41 +9,69 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Remove files with long names
+      - name: Delete problematic files via API
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Find and remove any files/dirs with names starting with '{'
-          find . -maxdepth 1 -name '{*' -exec git rm -rf --cached {} \; 2>/dev/null || true
-          find . -maxdepth 1 -name '"*' -exec git rm -rf --cached {} \; 2>/dev/null || true
-          # Remove the specific problematic directory using its short prefix
-          for d in */; do
-            if [[ ${#d} -gt 100 ]]; then
-              echo "Removing long-named directory: ${d:0:50}..."
-              git rm -rf --cached "$d" 2>/dev/null || true
-              rm -rf "$d" 2>/dev/null || true
-            fi
-          done
-          for f in *; do
-            if [[ ${#f} -gt 100 ]]; then
-              echo "Removing long-named file: ${f:0:50}..."
-              git rm -f --cached "$f" 2>/dev/null || true
-              rm -f "$f" 2>/dev/null || true
-            fi
-          done
-
-      - name: Commit and push
-        run: |
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-          git status
-          git add -A
-          if git diff --staged --quiet; then
-            echo "No changes to commit"
-          else
-            git commit -m "chore: remove files with excessively long names"
-            git push
-          fi
+          # Get the current tree SHA for main branch
+          BRANCH_SHA=$(curl -s -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/KARUN-499/karun-portfolio/git/refs/heads/main" \
+            | python3 -c "import sys,json; print(json.load(sys.stdin)['object']['sha'])")
+          
+          echo "Branch SHA: $BRANCH_SHA"
+          
+          # Get the tree SHA from the commit
+          TREE_SHA=$(curl -s -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/KARUN-499/karun-portfolio/git/commits/$BRANCH_SHA" \
+            | python3 -c "import sys,json; print(json.load(sys.stdin)['tree']['sha'])")
+          
+          echo "Tree SHA: $TREE_SHA"
+          
+          # Get the full tree and find items with long names
+          TREE_DATA=$(curl -s -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/KARUN-499/karun-portfolio/git/trees/$TREE_SHA")
+          
+          echo "Tree data:"
+          echo "$TREE_DATA" | python3 -c "import sys,json; [print(i['path'][:100], '|', i['sha']) for i in json.load(sys.stdin)['tree']]"
+          
+          # Build new tree excluding items with names > 100 chars
+          NEW_TREE=$(echo "$TREE_DATA" | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+items = data['tree']
+keep = []
+for item in items:
+    if len(item['path']) <= 100:
+        keep.append({'path': item['path'], 'mode': item['mode'], 'type': item['type'], 'sha': item['sha']})
+    else:
+        print(f\"REMOVING: {item['path'][:80]}...\", file=sys.stderr)
+print(json.dumps(keep))
+")
+          
+          echo "Creating new tree..."
+          
+          # Create new tree
+          NEW_TREE_SHA=$(curl -s -X POST -H "Authorization: token $GH_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"tree\": $NEW_TREE}" \
+            "https://api.github.com/repos/KARUN-499/karun-portfolio/git/trees" \
+            | python3 -c "import sys,json; print(json.load(sys.stdin)['sha'])")
+          
+          echo "New tree SHA: $NEW_TREE_SHA"
+          
+          # Create new commit
+          NEW_COMMIT_SHA=$(curl -s -X POST -H "Authorization: token $GH_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"message\": \"Remove files with long names\", \"tree\": \"$NEW_TREE_SHA\", \"parents\": [\"$BRANCH_SHA\"]}" \
+            "https://api.github.com/repos/KARUN-499/karun-portfolio/git/commits" \
+            | python3 -c "import sys,json; print(json.load(sys.stdin)['sha'])")
+          
+          echo "New commit SHA: $NEW_COMMIT_SHA"
+          
+          # Update branch ref
+          curl -s -X PATCH -H "Authorization: token $GH_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{\"sha\": \"$NEW_COMMIT_SHA\"}" \
+            "https://api.github.com/repos/KARUN-499/karun-portfolio/git/refs/heads/main"
+          
+          echo "Done! Branch updated."
