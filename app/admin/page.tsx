@@ -1,6 +1,5 @@
 'use client'
 import { useState, useEffect } from 'react'
-import axios from 'axios'
 import {
   FiGrid, FiCalendar, FiLogOut, FiUsers,
   FiTrendingUp, FiMail, FiLock, FiCheckCircle, FiCreditCard
@@ -30,9 +29,10 @@ export default function AdminDashboard() {
   const fetchBookings = async () => {
     try {
       setLoading(true)
-      const res = await axios.get('/api/bookings', { headers: { 'x-admin-key': ADMIN_KEY } })
-      setBookings(res.data.bookings || [])
-    } catch (err) {
+      const res = await fetch('/api/bookings', { headers: { 'x-admin-key': ADMIN_KEY } })
+      const data = await res.json()
+      setBookings(data.bookings || [])
+    } catch {
       setError('Failed to load bookings')
     } finally {
       setLoading(false)
@@ -54,7 +54,11 @@ export default function AdminDashboard() {
 
   const updateStatus = async (id: string, status: string) => {
     try {
-      await axios.patch(`/api/bookings/${id}`, { status }, { headers: { 'x-admin-key': ADMIN_KEY } })
+      await fetch(`/api/bookings/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'x-admin-key': ADMIN_KEY },
+        body: JSON.stringify({ status }),
+      })
       fetchBookings()
     } catch {
       setError('Failed to update status')
@@ -98,7 +102,6 @@ export default function AdminDashboard() {
 
   return (
     <main className="min-h-screen bg-black text-white">
-      {/* Sidebar */}
       <div className="flex">
         <aside className="w-64 min-h-screen border-r border-white/10 p-6 flex flex-col">
           <div className="mb-8">
@@ -134,7 +137,6 @@ export default function AdminDashboard() {
           </button>
         </aside>
 
-        {/* Main Content */}
         <div className="flex-1 p-8">
           {activeTab === 'dashboard' && (
             <div>
@@ -190,17 +192,15 @@ export default function AdminDashboard() {
                         <div className="text-white/40 text-sm">{b.email} · {b.phone}</div>
                         <div className="text-white/50 text-sm mt-1">{b.service} · {b.date}</div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <select
-                          value={b.status}
-                          onChange={e => updateStatus(b.id, e.target.value)}
-                          className="text-xs bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-white"
-                        >
-                          <option value="pending">Pending</option>
-                          <option value="confirmed">Confirmed</option>
-                          <option value="completed">Completed</option>
-                        </select>
-                      </div>
+                      <select
+                        value={b.status}
+                        onChange={e => updateStatus(b.id, e.target.value)}
+                        className="text-xs bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-white"
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="confirmed">Confirmed</option>
+                        <option value="completed">Completed</option>
+                      </select>
                     </div>
                   ))}
                   {bookings.length === 0 && <p className="text-white/50">No bookings found.</p>}
