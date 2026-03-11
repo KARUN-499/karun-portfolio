@@ -1,9 +1,5 @@
 'use client'
 import { useState, useEffect } from 'react'
-import {
-  FiGrid, FiCalendar, FiLogOut, FiUsers,
-  FiTrendingUp, FiMail, FiLock, FiCheckCircle, FiCreditCard
-} from 'react-icons/fi'
 
 const ADMIN_KEY = 'karun2024admin'
 
@@ -70,8 +66,8 @@ export default function AdminDashboard() {
       <main className="min-h-screen bg-black flex items-center justify-center px-6">
         <div className="card max-w-md w-full">
           <div className="text-center mb-8">
-            <div className="w-16 h-16 rounded-2xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center mx-auto mb-4">
-              <FiLock className="w-8 h-8 text-violet-400" />
+            <div className="w-16 h-16 rounded-2xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center mx-auto mb-4 text-3xl">
+              🔒
             </div>
             <h1 className="text-2xl font-bold">Admin Dashboard</h1>
             <p className="text-white/50 text-sm mt-1">Enter your admin password to continue</p>
@@ -94,10 +90,10 @@ export default function AdminDashboard() {
   }
 
   const stats = [
-    { label: 'Total Bookings', value: bookings.length, icon: FiCalendar, color: 'text-violet-400' },
-    { label: 'Pending', value: bookings.filter(b => b.status === 'pending').length, icon: FiTrendingUp, color: 'text-yellow-400' },
-    { label: 'Confirmed', value: bookings.filter(b => b.status === 'confirmed').length, icon: FiCheckCircle, color: 'text-emerald-400' },
-    { label: 'Completed', value: bookings.filter(b => b.status === 'completed').length, icon: FiCreditCard, color: 'text-blue-400' },
+    { label: 'Total Bookings', value: bookings.length, icon: '📅', color: 'text-violet-400' },
+    { label: 'Pending', value: bookings.filter(b => b.status === 'pending').length, icon: '⏳', color: 'text-yellow-400' },
+    { label: 'Confirmed', value: bookings.filter(b => b.status === 'confirmed').length, icon: '✅', color: 'text-emerald-400' },
+    { label: 'Completed', value: bookings.filter(b => b.status === 'completed').length, icon: '💳', color: 'text-blue-400' },
   ]
 
   return (
@@ -110,10 +106,10 @@ export default function AdminDashboard() {
           </div>
           <nav className="space-y-1 flex-1">
             {[
-              { id: 'dashboard', label: 'Dashboard', icon: FiGrid },
-              { id: 'bookings', label: 'Bookings', icon: FiCalendar },
-              { id: 'contacts', label: 'Contacts', icon: FiMail },
-              { id: 'clients', label: 'Clients', icon: FiUsers },
+              { id: 'dashboard', label: '📊 Dashboard' },
+              { id: 'bookings', label: '📅 Bookings' },
+              { id: 'contacts', label: '✉️ Contacts' },
+              { id: 'clients', label: '👥 Clients' },
             ].map(item => (
               <button
                 key={item.id}
@@ -124,16 +120,15 @@ export default function AdminDashboard() {
                     : 'text-white/50 hover:text-white hover:bg-white/5'
                 }`}
               >
-                <item.icon className="w-4 h-4" />
                 {item.label}
               </button>
             ))}
           </nav>
           <button
             onClick={() => setIsAuthorized(false)}
-            className="flex items-center gap-2 text-white/40 hover:text-white text-sm transition-colors"
+            className="text-white/40 hover:text-white text-sm transition-colors text-left"
           >
-            <FiLogOut className="w-4 h-4" /> Logout
+            🚪 Logout
           </button>
         </aside>
 
@@ -144,7 +139,7 @@ export default function AdminDashboard() {
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                 {stats.map((s, i) => (
                   <div key={i} className="card">
-                    <s.icon className={`w-6 h-6 ${s.color} mb-3`} />
+                    <div className="text-2xl mb-3">{s.icon}</div>
                     <div className="text-3xl font-bold mb-1">{s.value}</div>
                     <div className="text-white/50 text-sm">{s.label}</div>
                   </div>
@@ -213,7 +208,7 @@ export default function AdminDashboard() {
             <div>
               <h1 className="text-2xl font-bold mb-6">{activeTab === 'contacts' ? 'Contacts' : 'Clients'}</h1>
               <div className="card text-center py-12">
-                <FiMail className="w-12 h-12 text-white/20 mx-auto mb-4" />
+                <div className="text-4xl mb-4">✉️</div>
                 <p className="text-white/50">Coming soon</p>
               </div>
             </div>
