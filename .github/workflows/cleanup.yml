@@ -1,0 +1,49 @@
+name: Fix Long Filenames
+
+on:
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Remove files with long names
+        run: |
+          # Find and remove any files/dirs with names starting with '{'
+          find . -maxdepth 1 -name '{*' -exec git rm -rf --cached {} \; 2>/dev/null || true
+          find . -maxdepth 1 -name '"*' -exec git rm -rf --cached {} \; 2>/dev/null || true
+          # Remove the specific problematic directory using its short prefix
+          for d in */; do
+            if [[ ${#d} -gt 100 ]]; then
+              echo "Removing long-named directory: ${d:0:50}..."
+              git rm -rf --cached "$d" 2>/dev/null || true
+              rm -rf "$d" 2>/dev/null || true
+            fi
+          done
+          for f in *; do
+            if [[ ${#f} -gt 100 ]]; then
+              echo "Removing long-named file: ${f:0:50}..."
+              git rm -f --cached "$f" 2>/dev/null || true
+              rm -f "$f" 2>/dev/null || true
+            fi
+          done
+
+      - name: Commit and push
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git status
+          git add -A
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: remove files with excessively long names"
+            git push
+          fi
